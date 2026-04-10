@@ -23,6 +23,10 @@ A [pi](https://github.com/mariozechner/pi) extension that cuts **~75% of output 
 </tr>
 </table>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jonjonrankin/pi-caveman/main/pi-caveman.gif" alt="pi-caveman demo" width="600">
+</p>
+
 ## Install
 
 ```bash
