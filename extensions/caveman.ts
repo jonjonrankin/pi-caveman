@@ -9,19 +9,65 @@
  *                     Levels: lite | full | ultra | wenyan-lite | wenyan | wenyan-ultra | off
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+
+// ---------------------------------------------------------------------------
+// Levels
+// ---------------------------------------------------------------------------
 
 const LEVELS = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra"] as const;
 type Level = (typeof LEVELS)[number];
 
-const LABELS: Record<Level, string> = {
-	off: "",
-	lite: "🪶 Lite",
-	full: "🪨 Full",
-	ultra: "🔥 Ultra",
-	"wenyan-lite": "📜 文言文 Lite",
-	wenyan: "📜 文言文",
-	"wenyan-ultra": "📜 文言文 Ultra",
+// ---------------------------------------------------------------------------
+// Animated status bar — block-element pixel art, per-level animations
+// ---------------------------------------------------------------------------
+
+interface Animation {
+	frames: string[];
+	/** Label shown after the icon */
+	label: string;
+	/** ms between frames */
+	interval: number;
+}
+
+// Block-element frames give a chunky, pixelated terminal feel.
+// Each animation is a short loop designed for a single-line footer slot.
+
+const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
+	// Lite: gentle breathing pulse
+	lite: {
+		frames: ["░▒░", "▒▓▒", "▓█▓", "▒▓▒"],
+		label: "LITE",
+		interval: 500,
+	},
+	// Full: throbbing rock
+	full: {
+		frames: ["▓█▓", "█▓█", "▓░▓", "█▓█"],
+		label: "CAVEMAN",
+		interval: 400,
+	},
+	// Ultra: fast fire shimmer
+	ultra: {
+		frames: ["░▒▓", "▒▓█", "▓█▒", "█▓░", "▓▒░"],
+		label: "ULTRA",
+		interval: 150,
+	},
+	// Wenyan modes: flowing scroll
+	"wenyan-lite": {
+		frames: ["▐░▌", "▐▒▌", "▐▓▌", "▐▒▌"],
+		label: "文言",
+		interval: 500,
+	},
+	wenyan: {
+		frames: ["▐▓▌", "▐█▌", "▐▓▌", "▐▒▌"],
+		label: "文言文",
+		interval: 400,
+	},
+	"wenyan-ultra": {
+		frames: ["▐░▌", "▐▓▌", "▐█▌", "▐▓▌", "▐░▌"],
+		label: "文言文極",
+		interval: 200,
+	},
 };
 
 // ---------------------------------------------------------------------------
@@ -79,6 +125,40 @@ Boundaries: write normal code. Only compress explanations. "stop caveman" or "no
 
 export default function caveman(pi: ExtensionAPI) {
 	let level: Level = "off";
+	let timer: ReturnType<typeof setInterval> | null = null;
+	let frameIndex = 0;
+
+	// -- Animation helpers --
+
+	function stopAnimation() {
+		if (timer) {
+			clearInterval(timer);
+			timer = null;
+		}
+		frameIndex = 0;
+	}
+
+	function syncStatus(ctx: Pick<ExtensionContext, "ui">) {
+		stopAnimation();
+		const theme = ctx.ui.theme;
+
+		if (level === "off") {
+			ctx.ui.setStatus("caveman", "");
+			return;
+		}
+
+		const anim = ANIMATIONS[level];
+
+		// Render one frame immediately, then start cycling
+		const renderFrame = () => {
+			const icon = anim.frames[frameIndex % anim.frames.length]!;
+			ctx.ui.setStatus("caveman", theme.fg("dim", icon) + " " + theme.fg("muted", anim.label));
+			frameIndex++;
+		};
+
+		renderFrame();
+		timer = setInterval(renderFrame, anim.interval);
+	}
 
 	// -- Restore persisted level on session load --
 
@@ -89,6 +169,12 @@ export default function caveman(pi: ExtensionAPI) {
 			}
 		}
 		syncStatus(ctx);
+	});
+
+	// -- Clean up timer on shutdown --
+
+	pi.on("session_shutdown", async () => {
+		stopAnimation();
 	});
 
 	// -- /caveman command --
@@ -111,7 +197,7 @@ export default function caveman(pi: ExtensionAPI) {
 			syncStatus(ctx);
 
 			ctx.ui.notify(
-				level === "off" ? "Caveman mode off." : `Caveman mode: ${LABELS[level]}`,
+				level === "off" ? "Caveman mode off." : `Caveman: ${ANIMATIONS[level].label}`,
 				"info",
 			);
 		},
@@ -125,10 +211,4 @@ export default function caveman(pi: ExtensionAPI) {
 			systemPrompt: `${event.systemPrompt}\n\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`,
 		};
 	});
-
-	// -- Helpers --
-
-	function syncStatus(ctx: { ui: { setStatus(id: string, text: string): void } }) {
-		ctx.ui.setStatus("caveman", LABELS[level]);
-	}
 }
