@@ -152,7 +152,7 @@ export default function caveman(pi: ExtensionAPI) {
 		// Render one frame immediately, then start cycling
 		const renderFrame = () => {
 			const icon = anim.frames[frameIndex % anim.frames.length]!;
-			ctx.ui.setStatus("caveman", theme.fg("dim", icon) + " " + theme.fg("muted", anim.label));
+			ctx.ui.setStatus("caveman", theme.fg("dim", icon) + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
 			frameIndex++;
 		};
 
