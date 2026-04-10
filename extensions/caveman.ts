@@ -30,39 +30,56 @@ interface Animation {
 	interval: number;
 }
 
-// Block-element frames give a chunky, pixelated terminal feel.
-// Each animation is a short loop designed for a single-line footer slot.
+// ANSI 256-color helpers for fire palette
+const R = "\x1b[38;5;196m"; // red
+const O = "\x1b[38;5;208m"; // orange
+const Y = "\x1b[38;5;220m"; // yellow
+const W = "\x1b[38;5;230m"; // white-hot
+const E = "\x1b[38;5;52m";  // ember (dark red)
+const X = "\x1b[0m";         // reset
+
+// Campfire: rising embers via braille dots, colored in fire tones.
+const FIRE_FRAMES = [
+	`${R}⠠${O}⠄${X}`,
+	`${O}⠔${Y}⠂${X}`,
+	`${Y}⠊${W}⠑${X}`,
+	`${W}⠑${Y}⠊${X}`,
+	`${Y}⠂${O}⠔${X}`,
+	`${O}⠄${R}⠠${X}`,
+	`${R}⠠${E}⠄${X}`,
+	`${E}⠔${R}⠂${X}`,
+];
 
 const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
 	lite: {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "LITE",
 		interval: 300,
 	},
 	full: {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "CAVEMAN",
-		interval: 250,
+		interval: 200,
 	},
 	ultra: {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "ULTRA",
-		interval: 120,
+		interval: 100,
 	},
 	"wenyan-lite": {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "文言",
 		interval: 300,
 	},
 	wenyan: {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "文言文",
-		interval: 250,
+		interval: 200,
 	},
 	"wenyan-ultra": {
-		frames: ["▖", "▘", "▝", "▗"],
+		frames: FIRE_FRAMES,
 		label: "文言文極",
-		interval: 120,
+		interval: 100,
 	},
 };
 
@@ -148,7 +165,7 @@ export default function caveman(pi: ExtensionAPI) {
 		// Render one frame immediately, then start cycling
 		const renderFrame = () => {
 			const icon = anim.frames[frameIndex % anim.frames.length]!;
-			ctx.ui.setStatus("caveman", theme.fg("dim", icon) + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
+			ctx.ui.setStatus("caveman", icon + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
 			frameIndex++;
 		};
 
