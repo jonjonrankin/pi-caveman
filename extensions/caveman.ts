@@ -6,10 +6,15 @@
  *
  * Commands:
  *   /caveman [level]  Toggle caveman mode or set intensity
- *                     Levels: lite | full | ultra | wenyan-lite | wenyan | wenyan-ultra | off
+ *   /caveman config   Open settings dialog (default level, status bar toggle)
  */
 
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { getSettingsListTheme } from "@mariozechner/pi-coding-agent";
+import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
 
 // ---------------------------------------------------------------------------
 // Levels
@@ -19,18 +24,48 @@ const LEVELS = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan
 type Level = (typeof LEVELS)[number];
 
 // ---------------------------------------------------------------------------
-// Animated status bar — block-element pixel art, per-level animations
+// Persistent config (survives across sessions)
+// ---------------------------------------------------------------------------
+
+interface CavemanConfig {
+	/** Level to apply on new sessions. "off" means don't auto-enable. */
+	defaultLevel: Level;
+	/** Whether to show the animated footer status. */
+	showStatus: boolean;
+}
+
+const CONFIG_PATH = join(homedir(), ".pi", "agent", "caveman.json");
+const DEFAULT_CONFIG: CavemanConfig = { defaultLevel: "off", showStatus: true };
+
+async function loadConfig(): Promise<CavemanConfig> {
+	try {
+		const raw = await readFile(CONFIG_PATH, "utf8");
+		const parsed = JSON.parse(raw);
+		return {
+			defaultLevel: LEVELS.includes(parsed.defaultLevel) ? parsed.defaultLevel : DEFAULT_CONFIG.defaultLevel,
+			showStatus: typeof parsed.showStatus === "boolean" ? parsed.showStatus : DEFAULT_CONFIG.showStatus,
+		};
+	} catch {
+		return { ...DEFAULT_CONFIG };
+	}
+}
+
+async function saveConfig(config: CavemanConfig): Promise<void> {
+	await mkdir(join(homedir(), ".pi", "agent"), { recursive: true });
+	await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+}
+
+// ---------------------------------------------------------------------------
+// Animated status bar — campfire with 256-color fire palette
 // ---------------------------------------------------------------------------
 
 interface Animation {
 	frames: string[];
-	/** Label shown after the icon */
 	label: string;
 	/** ms between frames */
 	interval: number;
 }
 
-// ANSI 256-color helpers for fire palette
 const R = "\x1b[38;5;196m"; // red
 const O = "\x1b[38;5;208m"; // orange
 const Y = "\x1b[38;5;220m"; // yellow
@@ -38,7 +73,6 @@ const W = "\x1b[38;5;230m"; // white-hot
 const E = "\x1b[38;5;52m";  // ember (dark red)
 const X = "\x1b[0m";         // reset
 
-// Campfire: rising embers via braille dots, colored in fire tones.
 const FIRE_FRAMES = [
 	`${R}⠠${O}⠄${X}`,
 	`${O}⠔${Y}⠂${X}`,
@@ -51,36 +85,12 @@ const FIRE_FRAMES = [
 ];
 
 const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
-	lite: {
-		frames: FIRE_FRAMES,
-		label: "LITE",
-		interval: 300,
-	},
-	full: {
-		frames: FIRE_FRAMES,
-		label: "CAVEMAN",
-		interval: 200,
-	},
-	ultra: {
-		frames: FIRE_FRAMES,
-		label: "ULTRA",
-		interval: 100,
-	},
-	"wenyan-lite": {
-		frames: FIRE_FRAMES,
-		label: "文言",
-		interval: 300,
-	},
-	wenyan: {
-		frames: FIRE_FRAMES,
-		label: "文言文",
-		interval: 200,
-	},
-	"wenyan-ultra": {
-		frames: FIRE_FRAMES,
-		label: "文言文極",
-		interval: 100,
-	},
+	lite:          { frames: FIRE_FRAMES, label: "LITE",   interval: 300 },
+	full:          { frames: FIRE_FRAMES, label: "CAVEMAN", interval: 200 },
+	ultra:         { frames: FIRE_FRAMES, label: "ULTRA",  interval: 100 },
+	"wenyan-lite": { frames: FIRE_FRAMES, label: "文言",    interval: 300 },
+	wenyan:        { frames: FIRE_FRAMES, label: "文言文",   interval: 200 },
+	"wenyan-ultra":{ frames: FIRE_FRAMES, label: "文言文極",  interval: 100 },
 };
 
 // ---------------------------------------------------------------------------
@@ -138,6 +148,7 @@ Boundaries: write normal code. Only compress explanations. "stop caveman" or "no
 
 export default function caveman(pi: ExtensionAPI) {
 	let level: Level = "off";
+	let config: CavemanConfig = { ...DEFAULT_CONFIG };
 	let timer: ReturnType<typeof setInterval> | null = null;
 	let frameIndex = 0;
 
@@ -155,14 +166,13 @@ export default function caveman(pi: ExtensionAPI) {
 		stopAnimation();
 		const theme = ctx.ui.theme;
 
-		if (level === "off") {
+		if (level === "off" || !config.showStatus) {
 			ctx.ui.setStatus("caveman", "");
 			return;
 		}
 
 		const anim = ANIMATIONS[level];
 
-		// Render one frame immediately, then start cycling
 		const renderFrame = () => {
 			const icon = anim.frames[frameIndex % anim.frames.length]!;
 			ctx.ui.setStatus("caveman", icon + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
@@ -173,18 +183,30 @@ export default function caveman(pi: ExtensionAPI) {
 		timer = setInterval(renderFrame, anim.interval);
 	}
 
-	// -- Restore persisted level on session load --
+	// -- Restore state on session load --
 
 	pi.on("session_start", async (_event, ctx) => {
+		config = await loadConfig();
+
+		// Check for session-level override first (resuming a session)
+		let sessionLevel: Level | null = null;
 		for (const entry of ctx.sessionManager.getEntries()) {
 			if (entry.type === "custom" && entry.customType === "caveman-level") {
-				level = (entry.data as { level: Level })?.level ?? "off";
+				sessionLevel = (entry.data as { level: Level })?.level ?? null;
 			}
 		}
+
+		if (sessionLevel !== null) {
+			// Resuming — use session state
+			level = sessionLevel;
+		} else if (config.defaultLevel !== "off") {
+			// New session — apply default from config
+			level = config.defaultLevel;
+			pi.appendEntry("caveman-level", { level });
+		}
+
 		syncStatus(ctx);
 	});
-
-	// -- Clean up timer on shutdown --
 
 	pi.on("session_shutdown", async () => {
 		stopAnimation();
@@ -193,16 +215,22 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- /caveman command --
 
 	pi.registerCommand("caveman", {
-		description: "Toggle caveman mode or set level: lite, full, ultra, wenyan-lite, wenyan, wenyan-ultra, off",
+		description: "Toggle caveman mode, set level, or 'config' to open settings",
 		handler: async (args, ctx) => {
 			const arg = args?.trim().toLowerCase();
+
+			// Open config dialog
+			if (arg === "config") {
+				await openConfig(ctx);
+				return;
+			}
 
 			if (!arg) {
 				level = level === "off" ? "full" : "off";
 			} else if (LEVELS.includes(arg as Level)) {
 				level = arg as Level;
 			} else {
-				ctx.ui.notify(`Unknown level "${arg}". Options: ${LEVELS.join(", ")}`, "error");
+				ctx.ui.notify(`Unknown: "${arg}". Use: ${LEVELS.join(", ")} or config`, "error");
 				return;
 			}
 
@@ -215,6 +243,61 @@ export default function caveman(pi: ExtensionAPI) {
 			);
 		},
 	});
+
+	// -- /caveman config: interactive SettingsList --
+
+	async function openConfig(ctx: ExtensionContext) {
+		config = await loadConfig();
+
+		await ctx.ui.custom((_tui, theme, _kb, done) => {
+			const items: SettingItem[] = [
+				{
+					id: "defaultLevel",
+					label: "Default level for new sessions",
+					currentValue: config.defaultLevel,
+					values: [...LEVELS],
+				},
+				{
+					id: "showStatus",
+					label: "Show animated status bar",
+					currentValue: config.showStatus ? "on" : "off",
+					values: ["on", "off"],
+				},
+			];
+
+			const container = new Container();
+			container.addChild(new Text(theme.fg("accent", theme.bold(" Caveman Config")), 0, 0));
+			container.addChild(new Text(theme.fg("dim", " Saved to ~/.pi/agent/caveman.json"), 0, 0));
+			container.addChild(new Text("", 0, 0));
+
+			const settingsList = new SettingsList(
+				items,
+				Math.min(items.length + 2, 10),
+				getSettingsListTheme(),
+				(id, newValue) => {
+					if (id === "defaultLevel" && LEVELS.includes(newValue as Level)) {
+						config.defaultLevel = newValue as Level;
+					} else if (id === "showStatus") {
+						config.showStatus = newValue === "on";
+					}
+					saveConfig(config);
+					syncStatus(ctx);
+				},
+				() => done(undefined),
+			);
+
+			container.addChild(settingsList);
+			container.addChild(new Text(theme.fg("dim", " ←→ change • esc close"), 0, 0));
+
+			return {
+				render: (w: number) => container.render(w),
+				invalidate: () => container.invalidate(),
+				handleInput: (data: string) => {
+					settingsList.handleInput?.(data);
+				},
+			};
+		});
+	}
 
 	// -- Inject caveman rules into system prompt --
 

@@ -31,6 +31,8 @@ pi install git:github.com/jonjonrankin/pi-caveman
 
 ## Usage
 
+### Toggle Mode
+
 ```
 /caveman              Toggle on (full) / off
 /caveman lite         Professional, no fluff
@@ -42,11 +44,28 @@ pi install git:github.com/jonjonrankin/pi-caveman
 /caveman off          Disable
 ```
 
-The active level persists across session restarts. An animated status indicator in the footer shows the current mode — each level has its own block-element animation:
+### Settings
+
+```
+/caveman config       Open settings dialog
+```
+
+The config dialog lets you:
+
+- **Default level** — Set a level that activates automatically on every new session (e.g. `full` to always start in caveman mode)
+- **Show status bar** — Toggle the animated campfire indicator in the footer
+
+Settings are saved to `~/.pi/agent/caveman.json` and persist across all sessions.
+
+### Status Bar
+
+When active, an animated campfire flickers in the footer using colored braille characters:
 
 ```
 ⠠⠄ → ⠔⠂ → ⠊⠑ → ...   colored campfire embers (speed varies by level)
 ```
+
+Colors cycle through red → orange → yellow → white-hot → ember using ANSI 256-color. Speed scales with intensity: 300ms for lite, 200ms for full, 100ms for ultra.
 
 ## Levels
 
@@ -61,7 +80,7 @@ The active level persists across session restarts. An animated status indicator 
 
 ## How It Works
 
-The extension hooks `before_agent_start` to append caveman communication rules to the system prompt at the selected intensity. The active level is persisted as a custom session entry and restored on `session_start`. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
+The extension hooks `before_agent_start` to append caveman communication rules to the system prompt at the selected intensity. Within a session, the active level is stored as a custom session entry and restored on resume. Across sessions, persistent config (`~/.pi/agent/caveman.json`) provides the default level and status bar preference. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
 
 ## Credits
 
