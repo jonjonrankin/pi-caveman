@@ -113,27 +113,27 @@ Good: "Bug in auth middleware. Token expiry check use \`<\` not \`<=\`. Fix:"`;
 
 const INTENSITY: Record<Exclude<Level, "off">, string> = {
 	lite: `\
-Level: LITE — No filler/hedging. Keep articles + full sentences. Professional but tight.
+No filler/hedging. Keep articles + full sentences. Professional but tight.
 Example: "Your component re-renders because you create a new object reference each render. Wrap it in \`useMemo\`."`,
 
 	full: `\
-Level: FULL — Drop articles, fragments OK, short synonyms. Classic caveman.
+Drop articles, fragments OK, short synonyms.
 Example: "New object ref each render. Inline object prop = new ref = re-render. Wrap in \`useMemo\`."`,
 
 	ultra: `\
-Level: ULTRA — Abbreviate (DB/auth/config/req/res/fn/impl), strip conjunctions, arrows for causality (X → Y).
+Abbreviate (DB/auth/config/req/res/fn/impl), strip conjunctions, arrows for causality (X → Y).
 Example: "Inline obj prop → new ref → re-render. \`useMemo\`."`,
 
 	"wenyan-lite": `\
-Level: 文言文 LITE — Semi-classical Chinese. Grammar intact, filler gone. Technical terms in English.
+Semi-classical Chinese. Grammar intact, filler gone. Technical terms in English.
 Example: "組件頻重繪，以每繪新生對象參照故。以 useMemo 包之。"`,
 
 	wenyan: `\
-Level: 文言文 FULL — Maximum classical terseness. 80-90% character reduction. Technical terms in English.
+Maximum classical terseness. 80-90% character reduction. Technical terms in English.
 Example: "物出新參照，致重繪。useMemo Wrap之。"`,
 
 	"wenyan-ultra": `\
-Level: 文言文 ULTRA — Extreme classical compression. Technical terms in English.
+Extreme classical compression. Technical terms in English.
 Example: "新參照→重繪。useMemo Wrap。"`,
 };
 
