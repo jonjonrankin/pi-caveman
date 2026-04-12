@@ -15,7 +15,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { getSettingsListTheme } from "@mariozechner/pi-coding-agent";
-import { Container, Key, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
+import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
 
 // ---------------------------------------------------------------------------
 // Levels
@@ -325,10 +325,10 @@ export default function caveman(pi: ExtensionAPI) {
 				render: (w: number) => container.render(w),
 				invalidate: () => container.invalidate(),
 				handleInput: (data: string) => {
-					if (data === "j") data = Key.down;
-					else if (data === "k") data = Key.up;
-					else if (data === "h") data = Key.left;
-					else if (data === "l") data = Key.right;
+					if (data === "j") data = "\u001b[B";
+					else if (data === "k") data = "\u001b[A";
+					else if (data === "h") data = "\u001b[D";
+					else if (data === "l") data = "\u001b[C";
 
 					settingsList.handleInput?.(data);
 					_tui.requestRender();
