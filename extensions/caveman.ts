@@ -6,6 +6,7 @@
  *
  * Commands:
  *   /caveman [level]  Toggle caveman mode or set intensity
+ *   /caveman stop     Disable caveman mode (aliases: off, quit)
  *   /caveman config   Open settings dialog (default level, status bar toggle)
  */
 
@@ -21,6 +22,7 @@ import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/p
 // ---------------------------------------------------------------------------
 
 const LEVELS = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra"] as const;
+const STOP_ALIASES = new Set(["off", "stop", "quit"]);
 type Level = (typeof LEVELS)[number];
 
 // ---------------------------------------------------------------------------
@@ -234,7 +236,7 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- /caveman command --
 
 	pi.registerCommand("caveman", {
-		description: "Toggle caveman mode, set level, or 'config' to open settings",
+		description: "Toggle caveman mode, set level, use stop/off/quit to disable, or 'config' to open settings",
 		handler: async (args, ctx) => {
 			const arg = args?.trim().toLowerCase();
 
@@ -246,10 +248,12 @@ export default function caveman(pi: ExtensionAPI) {
 
 			if (!arg) {
 				level = level === "off" ? "full" : "off";
+			} else if (STOP_ALIASES.has(arg)) {
+				level = "off";
 			} else if (LEVELS.includes(arg as Level)) {
 				level = arg as Level;
 			} else {
-				ctx.ui.notify(`Unknown: "${arg}". Use: ${LEVELS.join(", ")} or config`, "error");
+				ctx.ui.notify(`Unknown: "${arg}". Use: ${LEVELS.join(", ")}, stop, quit, or config`, "error");
 				return;
 			}
 

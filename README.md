@@ -46,6 +46,8 @@ pi install git:github.com/jonjonrankin/pi-caveman
 /caveman wenyan       Full 文言文
 /caveman wenyan-ultra Extreme 文言文
 /caveman off          Disable
+/caveman stop         Disable (alias)
+/caveman quit         Disable (alias)
 ```
 
 ### Settings
