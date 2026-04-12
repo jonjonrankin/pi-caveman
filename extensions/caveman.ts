@@ -21,7 +21,7 @@ import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/p
 // Levels
 // ---------------------------------------------------------------------------
 
-const LEVELS = ["off", "micro", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra"] as const;
+const LEVELS = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra", "micro"] as const;
 const STOP_ALIASES = new Set(["off", "stop", "quit"]);
 type Level = (typeof LEVELS)[number];
 
@@ -87,13 +87,13 @@ const FIRE_FRAMES = [
 ];
 
 const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
-	micro:         { frames: FIRE_FRAMES, label: "MICRO", interval: 120 },
-	lite:          { frames: FIRE_FRAMES, label: "LITE", interval: 300 },
-	full:          { frames: FIRE_FRAMES, label: "CAVEMAN", interval: 200 },
-	ultra:         { frames: FIRE_FRAMES, label: "ULTRA", interval: 100 },
+	lite:           { frames: FIRE_FRAMES, label: "LITE", interval: 300 },
+	full:           { frames: FIRE_FRAMES, label: "CAVEMAN", interval: 200 },
+	ultra:          { frames: FIRE_FRAMES, label: "ULTRA", interval: 100 },
 	"wenyan-lite": { frames: FIRE_FRAMES, label: "文言", interval: 300 },
-	wenyan:        { frames: FIRE_FRAMES, label: "文言文", interval: 200 },
+	wenyan:         { frames: FIRE_FRAMES, label: "文言文", interval: 200 },
 	"wenyan-ultra": { frames: FIRE_FRAMES, label: "文言文極", interval: 100 },
+	micro:          { frames: FIRE_FRAMES, label: "MICRO", interval: 120 },
 };
 
 // ---------------------------------------------------------------------------
