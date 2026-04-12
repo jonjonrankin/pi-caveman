@@ -25,6 +25,20 @@ const LEVELS = ["off", "lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan
 const STOP_ALIASES = new Set(["off", "stop", "quit"]);
 type Level = (typeof LEVELS)[number];
 
+const CAVEMAN_COMMAND_OPTIONS = [
+	{ value: "lite", label: "lite", description: "Professional, no fluff" },
+	{ value: "full", label: "full", description: "Classic caveman" },
+	{ value: "ultra", label: "ultra", description: "Maximum compression" },
+	{ value: "wenyan-lite", label: "wenyan-lite", description: "Semi-classical Chinese" },
+	{ value: "wenyan", label: "wenyan", description: "Full 文言文" },
+	{ value: "wenyan-ultra", label: "wenyan-ultra", description: "Extreme 文言文" },
+	{ value: "micro", label: "micro", description: "Experimental prompt-minimized mode" },
+	{ value: "off", label: "off", description: "Disable caveman mode" },
+	{ value: "stop", label: "stop", description: "Disable caveman mode" },
+	{ value: "quit", label: "quit", description: "Disable caveman mode" },
+	{ value: "config", label: "config", description: "Open settings dialog" },
+] as const;
+
 // ---------------------------------------------------------------------------
 // Persistent config (survives across sessions)
 // ---------------------------------------------------------------------------
@@ -246,6 +260,11 @@ export default function caveman(pi: ExtensionAPI) {
 
 	pi.registerCommand("caveman", {
 		description: "Toggle caveman mode, set level, use stop/off/quit to disable, or 'config' to open settings",
+		getArgumentCompletions: (prefix: string) => {
+			const normalized = prefix.trim().toLowerCase();
+			const items = CAVEMAN_COMMAND_OPTIONS.filter((item) => item.value.startsWith(normalized));
+			return items.length > 0 ? items : null;
+		},
 		handler: async (args, ctx) => {
 			const arg = args?.trim().toLowerCase();
 
@@ -300,6 +319,7 @@ export default function caveman(pi: ExtensionAPI) {
 			const container = new Container();
 			container.addChild(new Text(theme.fg("accent", theme.bold(" Caveman Config")), 0, 0));
 			container.addChild(new Text(theme.fg("dim", " Saved to ~/.pi/agent/caveman.json"), 0, 0));
+			container.addChild(new Text(theme.fg("dim", " Default level applies to future sessions."), 0, 0));
 			container.addChild(new Text("", 0, 0));
 
 			const applySettingChange = (id: string, newValue: string) => {
