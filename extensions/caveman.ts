@@ -302,24 +302,39 @@ export default function caveman(pi: ExtensionAPI) {
 			container.addChild(new Text(theme.fg("dim", " Saved to ~/.pi/agent/caveman.json"), 0, 0));
 			container.addChild(new Text("", 0, 0));
 
+			const applySettingChange = (id: string, newValue: string) => {
+				if (id === "defaultLevel" && LEVELS.includes(newValue as Level)) {
+					config.defaultLevel = newValue as Level;
+				} else if (id === "showStatus") {
+					config.showStatus = newValue === "on";
+				}
+				saveConfig(config);
+				syncStatus(ctx);
+			};
+
 			const settingsList = new SettingsList(
 				items,
 				Math.min(items.length + 2, 10),
 				getSettingsListTheme(),
-				(id, newValue) => {
-					if (id === "defaultLevel" && LEVELS.includes(newValue as Level)) {
-						config.defaultLevel = newValue as Level;
-					} else if (id === "showStatus") {
-						config.showStatus = newValue === "on";
-					}
-					saveConfig(config);
-					syncStatus(ctx);
-				},
+				applySettingChange,
 				() => done(undefined),
 			);
 
 			container.addChild(settingsList);
-			container.addChild(new Text(theme.fg("dim", " ←→/hl change • ↑↓/jk move • esc close"), 0, 0));
+			container.addChild(new Text(theme.fg("dim", " ←→/hl/tab change • ↑↓/jk move • esc close"), 0, 0));
+
+			const cycleSelectedValue = (direction: -1 | 1) => {
+				const selectedIndex = (settingsList as unknown as { selectedIndex: number }).selectedIndex;
+				const item = items[selectedIndex];
+				if (!item?.values?.length) return;
+
+				const currentIndex = item.values.indexOf(item.currentValue);
+				const nextIndex = (currentIndex + direction + item.values.length) % item.values.length;
+				const newValue = item.values[nextIndex]!;
+				item.currentValue = newValue;
+				settingsList.updateValue(item.id, newValue);
+				applySettingChange(item.id, newValue);
+			};
 
 			return {
 				render: (w: number) => container.render(w),
@@ -327,8 +342,19 @@ export default function caveman(pi: ExtensionAPI) {
 				handleInput: (data: string) => {
 					if (data === "j") data = "\u001b[B";
 					else if (data === "k") data = "\u001b[A";
-					else if (data === "h") data = "\u001b[D";
-					else if (data === "l") data = "\u001b[C";
+					else if (data === "h") {
+						cycleSelectedValue(-1);
+						_tui.requestRender();
+						return;
+					} else if (data === "l" || data === "\u001b[C" || data === "\t") {
+						cycleSelectedValue(1);
+						_tui.requestRender();
+						return;
+					} else if (data === "\u001b[D") {
+						cycleSelectedValue(-1);
+						_tui.requestRender();
+						return;
+					}
 
 					settingsList.handleInput?.(data);
 					_tui.requestRender();
