@@ -51,7 +51,7 @@ interface CavemanConfig {
 }
 
 const CONFIG_PATH = join(homedir(), ".pi", "agent", "caveman.json");
-const DEFAULT_CONFIG: CavemanConfig = { defaultLevel: "off", showStatus: true };
+const DEFAULT_CONFIG: CavemanConfig = { defaultLevel: "full", showStatus: true };
 let saveConfigQueue: Promise<void> = Promise.resolve();
 
 async function loadConfig(): Promise<CavemanConfig> {
@@ -107,7 +107,7 @@ const FIRE_FRAMES = [
 
 const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
 	lite:           { frames: FIRE_FRAMES, label: "LITE", interval: 300 },
-	full:           { frames: FIRE_FRAMES, label: "CAVEMAN", interval: 200 },
+	full:           { frames: FIRE_FRAMES, label: "FULL", interval: 200 },
 	ultra:          { frames: FIRE_FRAMES, label: "ULTRA", interval: 100 },
 	"wenyan-lite": { frames: FIRE_FRAMES, label: "文言", interval: 300 },
 	wenyan:         { frames: FIRE_FRAMES, label: "文言文", interval: 200 },
