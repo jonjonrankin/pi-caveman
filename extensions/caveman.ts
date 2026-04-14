@@ -52,6 +52,7 @@ interface CavemanConfig {
 
 const CONFIG_PATH = join(homedir(), ".pi", "agent", "caveman.json");
 const DEFAULT_CONFIG: CavemanConfig = { defaultLevel: "full", showStatus: true };
+let saveConfigQueue: Promise<void> = Promise.resolve();
 
 async function loadConfig(): Promise<CavemanConfig> {
 	try {
@@ -67,8 +68,12 @@ async function loadConfig(): Promise<CavemanConfig> {
 }
 
 async function saveConfig(config: CavemanConfig): Promise<void> {
-	await mkdir(join(homedir(), ".pi", "agent"), { recursive: true });
-	await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+	const snapshot = JSON.stringify(config, null, 2) + "\n";
+	saveConfigQueue = saveConfigQueue.then(async () => {
+		await mkdir(join(homedir(), ".pi", "agent"), { recursive: true });
+		await writeFile(CONFIG_PATH, snapshot, "utf8");
+	});
+	return saveConfigQueue;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +182,19 @@ export default function caveman(pi: ExtensionAPI) {
 	let timer: ReturnType<typeof setInterval> | null = null;
 	let frameIndex = 0;
 	let isActive = false;
+	let configLoadPromise: Promise<void> | null = null;
+
+	const ensureConfigLoaded = async () => {
+		if (!configLoadPromise) {
+			configLoadPromise = (async () => {
+				config = await loadConfig();
+				if (level === "off" && config.defaultLevel !== "off") {
+					level = config.defaultLevel;
+				}
+			})();
+		}
+		await configLoadPromise;
+	};
 
 	// -- Animation helpers --
 
@@ -219,7 +237,7 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- Restore state on session load --
 
 	pi.on("session_start", async (_event, ctx) => {
-		config = await loadConfig();
+		await ensureConfigLoaded();
 
 		// Check for session-level override first (resuming a session)
 		let sessionLevel: Level | null = null;
@@ -298,7 +316,7 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- /caveman config: interactive SettingsList --
 
 	async function openConfig(ctx: ExtensionContext) {
-		config = await loadConfig();
+		await ensureConfigLoaded();
 
 		await ctx.ui.custom((_tui, theme, _kb, done) => {
 			const items: SettingItem[] = [
@@ -386,6 +404,7 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- Inject caveman rules into system prompt --
 
 	pi.on("before_agent_start", async (event) => {
+		await ensureConfigLoaded();
 		if (level === "off") return;
 		if (level === "micro") {
 			return {
