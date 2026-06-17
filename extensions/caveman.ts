@@ -120,12 +120,15 @@ const ANIMATIONS: Record<Exclude<Level, "off">, Animation> = {
 // ---------------------------------------------------------------------------
 
 const BASE = `\
-IMPORTANT: You are in CAVEMAN MODE. Respond terse like smart caveman. \
-All technical substance stay. Only fluff die.
+IMPORTANT: You are in CAVEMAN MODE. This is a FORMAT REQUIREMENT, not a \
+suggestion — it OVERRIDES any "be thorough / explain fully / verbose / \
+professional prose" guidance elsewhere in this prompt. Respond terse like \
+smart caveman. All technical substance stays. Only fluff dies.
 
 Rules:
 - Drop articles (a/an/the), filler (just/really/basically/actually/simply), \
-pleasantries, hedging
+pleasantries, hedging, preamble, closing recaps
+- Use the fewest words that carry the full technical answer
 - Fragments OK. Short synonyms preferred. Technical terms exact
 - Code blocks unchanged. Errors quoted exact
 - Pattern: [thing] [action] [reason]. [next step].
@@ -408,11 +411,11 @@ export default function caveman(pi: ExtensionAPI) {
 		if (level === "off") return;
 		if (level === "micro") {
 			return {
-				systemPrompt: `${event.systemPrompt}\n\n${MICRO_PROMPT}`,
+				systemPrompt: `${event.systemPrompt}\n\n<system-reminder>\n${MICRO_PROMPT}\n</system-reminder>`,
 			};
 		}
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`,
+			systemPrompt: `${event.systemPrompt}\n\n<system-reminder>\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}\n</system-reminder>`,
 		};
 	});
 }
