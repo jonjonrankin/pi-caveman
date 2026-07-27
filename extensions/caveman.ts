@@ -172,6 +172,20 @@ Auto-clarity: drop caveman for security warnings, irreversible action confirmati
 or when user is confused. Resume after.
 Boundaries: write normal code. Only compress explanations. "stop caveman" or "normal mode" reverts.`;
 
+
+/** OMP passes string[]; upstream Pi passes string. Coerce before template join. */
+function coerceSystemPrompt(
+	systemPrompt: string | string[] | null | undefined,
+): string {
+	if (systemPrompt == null) return "";
+	if (Array.isArray(systemPrompt)) {
+		return systemPrompt
+			.map((part) => (typeof part === "string" ? part : String(part ?? "")))
+			.join("\n\n");
+	}
+	return typeof systemPrompt === "string" ? systemPrompt : String(systemPrompt);
+}
+
 // ---------------------------------------------------------------------------
 // Extension
 // ---------------------------------------------------------------------------
@@ -406,13 +420,16 @@ export default function caveman(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event) => {
 		await ensureConfigLoaded();
 		if (level === "off") return;
+		const basePrompt = coerceSystemPrompt(
+			event.systemPrompt as string | string[] | null | undefined,
+		);
 		if (level === "micro") {
 			return {
-				systemPrompt: `${event.systemPrompt}\n\n${MICRO_PROMPT}`,
+				systemPrompt: `${basePrompt}\n\n${MICRO_PROMPT}`,
 			};
 		}
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`,
+			systemPrompt: `${basePrompt}\n\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`,
 		};
 	});
 }
