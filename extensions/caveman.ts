@@ -13,7 +13,11 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	BeforeAgentStartEventResult,
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
 import { Container, type SettingItem, SettingsList, Text } from "@earendil-works/pi-tui";
 
@@ -171,6 +175,18 @@ const SAFETY = `\
 Auto-clarity: drop caveman for security warnings, irreversible action confirmations, \
 or when user is confused. Resume after.
 Boundaries: write normal code. Only compress explanations. "stop caveman" or "normal mode" reverts.`;
+
+/** OMP passes ordered string[] blocks; upstream Pi passes one string. */
+function appendSystemPrompt(
+	systemPrompt: string | string[] | null | undefined,
+	addition: string,
+): string | string[] {
+	if (Array.isArray(systemPrompt)) {
+		return [...systemPrompt, addition];
+	}
+	const basePrompt = typeof systemPrompt === "string" ? systemPrompt : String(systemPrompt ?? "");
+	return basePrompt ? `${basePrompt}\n\n${addition}` : addition;
+}
 
 // ---------------------------------------------------------------------------
 // Extension
@@ -406,13 +422,13 @@ export default function caveman(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event) => {
 		await ensureConfigLoaded();
 		if (level === "off") return;
-		if (level === "micro") {
-			return {
-				systemPrompt: `${event.systemPrompt}\n\n${MICRO_PROMPT}`,
-			};
-		}
+		const addition =
+			level === "micro" ? MICRO_PROMPT : `${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`;
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`,
-		};
+			systemPrompt: appendSystemPrompt(
+				event.systemPrompt as string | string[] | null | undefined,
+				addition,
+			),
+		} as unknown as BeforeAgentStartEventResult;
 	});
 }
