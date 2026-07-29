@@ -1,6 +1,6 @@
 /**
- * Regression: before_agent_start must join string[] systemPrompt with \n\n
- * (OMP), not comma-join via template interpolation. String path must still work.
+ * Regression: before_agent_start must preserve OMP's ordered string[] prompt
+ * blocks while appending caveman rules. Pi's string path must still work.
  *
  *   bun scripts/test-systemprompt-coerce.mjs
  */
@@ -50,19 +50,15 @@ const result = await before({
   systemPrompt: ["part-a", "part-b"],
 });
 const sp = result?.systemPrompt;
-if (typeof sp !== "string") {
-  console.error("FAIL: expected string systemPrompt, got", typeof sp);
+if (!Array.isArray(sp)) {
+  console.error("FAIL: expected string[] systemPrompt");
   process.exit(1);
 }
-if (!sp.includes("part-a\n\npart-b")) {
-  console.error("FAIL: missing joined array parts with \\n\\n");
+if (sp.length !== 3 || sp[0] !== "part-a" || sp[1] !== "part-b") {
+  console.error("FAIL: original OMP prompt blocks were not preserved", sp);
   process.exit(1);
 }
-if (sp.includes("part-a,part-b")) {
-  console.error("FAIL: comma-joined array still present");
-  process.exit(1);
-}
-if (!/CAVEMAN MODE|caveman/i.test(sp)) {
+if (!/CAVEMAN MODE|caveman/i.test(sp[2])) {
   console.error("FAIL: caveman rules not appended");
   process.exit(1);
 }
@@ -74,6 +70,10 @@ const result2 = await before({
 });
 if (typeof result2?.systemPrompt !== "string" || !result2.systemPrompt.includes("solo-prompt")) {
   console.error("FAIL: string systemPrompt path broken");
+  process.exit(1);
+}
+if (!/CAVEMAN MODE|caveman/i.test(result2.systemPrompt)) {
+  console.error("FAIL: string path missing caveman rules");
   process.exit(1);
 }
 
@@ -88,4 +88,4 @@ if (result3) {
   process.exit(1);
 }
 
-console.log("PASS: coerce joins string[] with \\n\\n; string path ok; off no-op");
+console.log("PASS: string[] blocks preserved; string path ok; off no-op");
