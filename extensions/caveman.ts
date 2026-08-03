@@ -47,6 +47,18 @@ const CAVEMAN_COMMAND_OPTIONS = [
 // Persistent config (survives across sessions)
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve the pi agent config directory, mirroring pi itself and pi-web-access:
+ *  1. PI_CODING_AGENT_DIR env override (already points at the agent dir)
+ *  2. $XDG_CONFIG_HOME/pi/agent
+ *  3. ~/.pi/agent
+ */
+function getConfigDir(): string {
+	if (process.env.PI_CODING_AGENT_DIR) return process.env.PI_CODING_AGENT_DIR;
+	if (process.env.XDG_CONFIG_HOME) return join(process.env.XDG_CONFIG_HOME, "pi", "agent");
+	return join(homedir(), ".pi", "agent");
+}
+
 interface CavemanConfig {
 	/** Level to apply on new sessions. "off" means don't auto-enable. */
 	defaultLevel: Level;
@@ -54,7 +66,7 @@ interface CavemanConfig {
 	showStatus: boolean;
 }
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "caveman.json");
+const CONFIG_PATH = join(getConfigDir(), "caveman.json");
 const DEFAULT_CONFIG: CavemanConfig = { defaultLevel: "full", showStatus: true };
 let saveConfigQueue: Promise<void> = Promise.resolve();
 
@@ -74,7 +86,7 @@ async function loadConfig(): Promise<CavemanConfig> {
 async function saveConfig(config: CavemanConfig): Promise<void> {
 	const snapshot = JSON.stringify(config, null, 2) + "\n";
 	saveConfigQueue = saveConfigQueue.then(async () => {
-		await mkdir(join(homedir(), ".pi", "agent"), { recursive: true });
+		await mkdir(getConfigDir(), { recursive: true });
 		await writeFile(CONFIG_PATH, snapshot, "utf8");
 	});
 	return saveConfigQueue;
@@ -352,7 +364,7 @@ export default function caveman(pi: ExtensionAPI) {
 
 			const container = new Container();
 			container.addChild(new Text(theme.fg("accent", theme.bold(" Caveman Config")), 0, 0));
-			container.addChild(new Text(theme.fg("dim", " Saved to ~/.pi/agent/caveman.json"), 0, 0));
+			container.addChild(new Text(theme.fg("dim", ` Saved to ${CONFIG_PATH}`), 0, 0));
 			container.addChild(new Text(theme.fg("dim", " Default level applies to future sessions."), 0, 0));
 			container.addChild(new Text("", 0, 0));
 
