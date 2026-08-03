@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -18,7 +19,8 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      - name: Ensure npm supports trusted publishing
+        run: npm install --global npm@11.5.1
+
       - name: Publish
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
