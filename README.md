@@ -62,7 +62,7 @@ The config dialog lets you:
 - **Default level** — Set a level that activates automatically on every new session (e.g. `full` to always start in caveman mode)
 - **Show status bar** — Toggle the animated campfire indicator in the footer
 
-Settings are saved to `~/.pi/agent/caveman.json` and persist across all sessions.
+Settings are saved to `~/.pi/agent/caveman.json` by default and persist across all sessions. If `XDG_CONFIG_HOME` is set, the path becomes `$XDG_CONFIG_HOME/pi/agent/caveman.json`; `PI_CODING_AGENT_DIR` overrides both.
 
 ### Status Bar
 
@@ -82,7 +82,7 @@ When active, a status bar displays caveman level and an animated campfire flicke
 
 ## How It Works
 
-The extension hooks `before_agent_start` to append caveman communication rules to the system prompt at the selected intensity. Within a session, the active level is stored as a custom session entry and restored on resume. Across sessions, persistent config (`~/.pi/agent/caveman.json`) provides the default level and status bar preference. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
+The extension hooks `before_agent_start` to append caveman communication rules to the system prompt at the selected intensity. Within a session, the active level is stored as a custom session entry and restored on resume. Across sessions, persistent config (`~/.pi/agent/caveman.json` by default, or `$XDG_CONFIG_HOME/pi/agent/caveman.json` when `XDG_CONFIG_HOME` is set; `PI_CODING_AGENT_DIR` overrides both) provides the default level and status bar preference. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
 
 ## Warning
 
