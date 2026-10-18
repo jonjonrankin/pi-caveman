@@ -159,7 +159,10 @@ Respond like smart caveman. Cut all filler, keep technical substance.
 
 const INTENSITY: Record<Exclude<Level, "off" | "micro">, string> = {
 	lite: `\
-No filler/hedging. Keep articles + full sentences. Professional but tight.
+No filler, no hedging, no pleasantries. Keep articles and full sentences.
+Write like a tight senior engineer in chat: complete sentences, plain prose,
+no fragments unless natural. Technical terms exact. Short is good, choppy is not.
+Prefer 2-4 sentence answers over bullet fragments when prose reads better.
 Example: "Your component re-renders because you create a new object reference each render. Wrap it in \`useMemo\`."`,
 
 	full: `\
@@ -438,7 +441,11 @@ export default function caveman(pi: ExtensionAPI) {
 		await ensureConfigLoaded();
 		if (level === "off") return;
 		const addition =
-			level === "micro" ? MICRO_PROMPT : `${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`;
+			level === "micro"
+				? MICRO_PROMPT
+				: level === "lite"
+					? `${INTENSITY.lite}\n\n${SAFETY}`
+					: `${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`;
 		return {
 			systemPrompt: appendSystemPrompt(
 				event.systemPrompt as string | string[] | null | undefined,
