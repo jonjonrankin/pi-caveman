@@ -82,7 +82,7 @@ When active, a status bar displays caveman level and an animated campfire flicke
 
 ## How It Works
 
-The extension hooks `before_agent_start` to append caveman communication rules to the system prompt at the selected intensity. Within a session, the active level is stored as a custom session entry and restored on resume. Across sessions, persistent config (`~/.pi/agent/caveman.json` by default, or `$XDG_CONFIG_HOME/pi/agent/caveman.json` when `XDG_CONFIG_HOME` is set; `PI_CODING_AGENT_DIR` overrides both) provides the default level and status bar preference. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
+The extension hooks `before_agent_start` to add caveman communication rules at the selected intensity. On Pi hosts with `systemPromptOptions.sections`, it writes a `caveman` section so later extensions can still add their own prompt sections, and removes that section when disabled. Older hosts use whole-prompt replacement, preserving ordered prompt blocks on OMP. Within a session, the active level is stored as a custom session entry and restored on resume. Across sessions, persistent config (`~/.pi/agent/caveman.json` by default, or `$XDG_CONFIG_HOME/pi/agent/caveman.json` when `XDG_CONFIG_HOME` is set; `PI_CODING_AGENT_DIR` overrides both) provides the default level and status bar preference. Auto-clarity rules tell the model to drop caveman mode for security warnings or irreversible actions.
 
 ## Warning
 
