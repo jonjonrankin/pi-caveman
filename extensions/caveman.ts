@@ -212,7 +212,6 @@ export default function caveman(pi: ExtensionAPI) {
 	let config: CavemanConfig = { ...DEFAULT_CONFIG };
 	let timer: ReturnType<typeof setInterval> | null = null;
 	let frameIndex = 0;
-	let isActive = false;
 	let configLoadPromise: Promise<void> | null = null;
 
 	const ensureConfigLoaded = async () => {
@@ -237,7 +236,7 @@ export default function caveman(pi: ExtensionAPI) {
 		frameIndex = 0;
 	}
 
-	function syncStatus(ctx: Pick<ExtensionContext, "ui">) {
+	function syncStatus(ctx: Pick<ExtensionContext, "ui" | "isIdle">) {
 		stopAnimation();
 
 		if (level === "off" || !config.showStatus) {
@@ -254,7 +253,7 @@ export default function caveman(pi: ExtensionAPI) {
 			ctx.ui.setStatus("caveman", frame + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
 		};
 
-		if (!isActive) {
+		if (ctx.isIdle()) {
 			setFrame(anim.frames[0]!);
 			return;
 		}
@@ -294,18 +293,17 @@ export default function caveman(pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_start", async (_event, ctx) => {
-		isActive = true;
 		syncStatus(ctx);
 	});
 
-	pi.on("agent_end", async (_event, ctx) => {
-		isActive = false;
+	// agent_end is only a low-level run boundary; retries, compaction, or queued
+	// messages can keep Pi active. Stop only when Pi reports the run settled.
+	pi.on("agent_settled", async (_event, ctx) => {
 		syncStatus(ctx);
 	});
 
 	pi.on("session_shutdown", async () => {
 		stopAnimation();
-		isActive = false;
 	});
 
 	// -- /caveman command --
