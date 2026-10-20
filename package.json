@@ -1,6 +1,6 @@
 {
   "name": "pi-caveman",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Why use many token when few do trick. Caveman mode for pi — cuts ~75% output tokens while keeping full technical accuracy.",
   "keywords": [
     "pi-package",
