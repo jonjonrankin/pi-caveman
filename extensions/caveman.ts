@@ -439,13 +439,25 @@ export default function caveman(pi: ExtensionAPI) {
 
 	pi.on("before_agent_start", async (event) => {
 		await ensureConfigLoaded();
-		if (level === "off") return;
+		// Use a structural check so older Pi/OMP hosts can still use the legacy path.
+		const sections = (event as { systemPromptOptions?: { sections?: Record<string, string> } })
+			.systemPromptOptions?.sections;
+		const hasSections = sections !== null && typeof sections === "object" && !Array.isArray(sections);
+		if (level === "off") {
+			if (hasSections) delete sections.caveman;
+			return;
+		}
 		const addition =
 			level === "micro"
 				? MICRO_PROMPT
 				: level === "lite"
 					? `${INTENSITY.lite}\n\n${SAFETY}`
 					: `${BASE}\n\n${INTENSITY[level]}\n\n${SAFETY}`;
+		if (hasSections) {
+			// Returning a whole prompt freezes it before later handlers add their sections.
+			sections.caveman = addition;
+			return;
+		}
 		return {
 			systemPrompt: appendSystemPrompt(
 				event.systemPrompt as string | string[] | null | undefined,
