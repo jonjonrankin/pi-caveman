@@ -212,6 +212,7 @@ export default function caveman(pi: ExtensionAPI) {
 	let config: CavemanConfig = { ...DEFAULT_CONFIG };
 	let timer: ReturnType<typeof setInterval> | null = null;
 	let frameIndex = 0;
+	let animationGeneration = 0;
 	let isActive = false;
 	let configLoadPromise: Promise<void> | null = null;
 
@@ -230,6 +231,7 @@ export default function caveman(pi: ExtensionAPI) {
 	// -- Animation helpers --
 
 	function stopAnimation() {
+		animationGeneration++;
 		if (timer) {
 			clearInterval(timer);
 			timer = null;
@@ -240,32 +242,34 @@ export default function caveman(pi: ExtensionAPI) {
 	function syncStatus(ctx: Pick<ExtensionContext, "ui">) {
 		stopAnimation();
 
-		if (level === "off" || !config.showStatus) {
-			ctx.ui.setStatus("caveman", "");
-			return;
-		}
-
-		// Hosts like pi-web-ui expose setStatus without a TUI theme — bail instead of throwing on theme.fg.
-		if (!ctx.ui.theme?.fg) return;
-		const theme = ctx.ui.theme;
-
-		const anim = ANIMATIONS[level];
-		const setFrame = (frame: string) => {
-			ctx.ui.setStatus("caveman", frame + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
-		};
-
-		if (!isActive) {
-			setFrame(anim.frames[0]!);
-			return;
-		}
-
+		const generation = animationGeneration;
+		const anim = level === "off" ? null : ANIMATIONS[level];
 		const renderFrame = () => {
-			setFrame(anim.frames[frameIndex % anim.frames.length]!);
-			frameIndex++;
+			if (generation !== animationGeneration) return false;
+			try {
+				if (!anim || !config.showStatus) {
+					ctx.ui.setStatus("caveman", "");
+					return false;
+				}
+
+				// Hosts like pi-web-ui may expose setStatus without a TUI theme.
+				const theme = ctx.ui.theme;
+				if (!theme?.fg) return false;
+				const frame = anim.frames[frameIndex % anim.frames.length]!;
+				ctx.ui.setStatus("caveman", frame + " " + theme.fg("muted", "caveman level: ") + theme.fg("text", anim.label));
+				frameIndex++;
+				return true;
+			} catch (error) {
+				// Timer callbacks run outside Pi's event-handler error boundary.
+				stopAnimation();
+				if (!(error instanceof Error) || !error.message.includes("stale after session replacement")) throw error;
+				return false;
+			}
 		};
 
-		renderFrame();
-		timer = setInterval(renderFrame, anim.interval);
+		if (renderFrame() && isActive && anim) {
+			timer = setInterval(renderFrame, anim.interval);
+		}
 	}
 
 	// -- Restore state on session load --
