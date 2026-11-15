@@ -248,7 +248,7 @@ export default function caveman(pi: ExtensionAPI) {
 			if (generation !== animationGeneration) return false;
 			try {
 				if (!anim || !config.showStatus) {
-					ctx.ui.setStatus("caveman", "");
+					ctx.ui.setStatus("caveman", undefined);
 					return false;
 				}
 
