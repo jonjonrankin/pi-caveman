@@ -18,8 +18,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
-import { Container, type SettingItem, SettingsList, Text } from "@earendil-works/pi-tui";
+import { parseKey, truncate, visibleWidth } from "./rows.ts";
 
 // ---------------------------------------------------------------------------
 // Levels
@@ -351,13 +350,13 @@ export default function caveman(pi: ExtensionAPI) {
 		},
 	});
 
-	// -- /caveman config: interactive SettingsList --
+	// -- /caveman config: settings dialog drawn as plain rows (no pi-tui import; omp 19.2 refuses it) --
 
 	async function openConfig(ctx: ExtensionContext) {
 		await ensureConfigLoaded();
 
 		await ctx.ui.custom((_tui, theme, _kb, done) => {
-			const items: SettingItem[] = [
+			const items: { id: string; label: string; currentValue: string; values: string[] }[] = [
 				{
 					id: "defaultLevel",
 					label: "Default level for new sessions",
@@ -371,12 +370,7 @@ export default function caveman(pi: ExtensionAPI) {
 					values: ["on", "off"],
 				},
 			];
-
-			const container = new Container();
-			container.addChild(new Text(theme.fg("accent", theme.bold(" Caveman Config")), 0, 0));
-			container.addChild(new Text(theme.fg("dim", ` Saved to ${CONFIG_PATH}`), 0, 0));
-			container.addChild(new Text(theme.fg("dim", " Default level applies to future sessions."), 0, 0));
-			container.addChild(new Text("", 0, 0));
+			let selected = 0;
 
 			const applySettingChange = (id: string, newValue: string) => {
 				if (id === "defaultLevel" && LEVELS.includes(newValue as Level)) {
@@ -388,51 +382,39 @@ export default function caveman(pi: ExtensionAPI) {
 				syncStatus(ctx);
 			};
 
-			const settingsList = new SettingsList(
-				items,
-				Math.min(items.length + 2, 10),
-				getSettingsListTheme(),
-				applySettingChange,
-				() => done(undefined),
-			);
-
-			container.addChild(settingsList);
-			container.addChild(new Text(theme.fg("dim", " ←→/hl/tab change • ↑↓/jk move • esc close"), 0, 0));
-
 			const cycleSelectedValue = (direction: -1 | 1) => {
-				const selectedIndex = (settingsList as unknown as { selectedIndex: number }).selectedIndex;
-				const item = items[selectedIndex];
-				if (!item?.values?.length) return;
-
+				const item = items[selected]!;
 				const currentIndex = item.values.indexOf(item.currentValue);
 				const nextIndex = (currentIndex + direction + item.values.length) % item.values.length;
-				const newValue = item.values[nextIndex]!;
-				item.currentValue = newValue;
-				settingsList.updateValue(item.id, newValue);
-				applySettingChange(item.id, newValue);
+				item.currentValue = item.values[nextIndex]!;
+				applySettingChange(item.id, item.currentValue);
 			};
 
-			return {
-				render: (w: number) => container.render(w),
-				invalidate: () => container.invalidate(),
-				handleInput: (data: string) => {
-					if (data === "j") data = "\u001b[B";
-					else if (data === "k") data = "\u001b[A";
-					else if (data === "h") {
-						cycleSelectedValue(-1);
-						_tui.requestRender();
-						return;
-					} else if (data === "l" || data === "\u001b[C" || data === "\t") {
-						cycleSelectedValue(1);
-						_tui.requestRender();
-						return;
-					} else if (data === "\u001b[D") {
-						cycleSelectedValue(-1);
-						_tui.requestRender();
-						return;
-					}
+			const labelWidth = Math.max(...items.map((item) => visibleWidth(item.label)));
 
-					settingsList.handleInput?.(data);
+			return {
+				render: (w: number) =>
+					[
+						theme.fg("accent", theme.bold(" Caveman Config")),
+						theme.fg("dim", ` Saved to ${CONFIG_PATH}`),
+						theme.fg("dim", " Default level applies to future sessions."),
+						"",
+						...items.map((item, index) => {
+							const active = index === selected;
+							const label = item.label + " ".repeat(labelWidth - visibleWidth(item.label));
+							return `${active ? theme.fg("accent", "→ ") : "  "}${active ? theme.fg("accent", label) : label}  ${theme.fg(active ? "accent" : "muted", item.currentValue)}`;
+						}),
+						"",
+						theme.fg("dim", " ←→/hl/tab/enter change • ↑↓/jk move • esc close"),
+					].map((row) => truncate(row, w, "…")),
+				invalidate: () => {},
+				handleInput: (data: string) => {
+					const key = parseKey(data)?.id;
+					if (key === "escape" || key === "ctrl+c") return done(undefined);
+					if (key === "up" || key === "k") selected = (selected + items.length - 1) % items.length;
+					else if (key === "down" || key === "j") selected = (selected + 1) % items.length;
+					else if (key === "left" || key === "h") cycleSelectedValue(-1);
+					else if (key === "right" || key === "l" || key === "tab" || key === "enter" || key === " ") cycleSelectedValue(1);
 					_tui.requestRender();
 				},
 			};
